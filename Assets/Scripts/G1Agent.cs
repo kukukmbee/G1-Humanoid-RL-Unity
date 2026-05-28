@@ -11,7 +11,9 @@ public class G1Agent : Agent
     public Transform target; // Цель (Точка B)
 
     private ArticulationBody rootBody; // Корневое физическое тело (таз/pelvis)
-    private Transform headTransform; // Трансформ головы для контроля осанки прямохождения
+    [Header("Posture Control")]
+    [Tooltip("Трансформ головы для контроля осанки прямохождения. Если оставить пустым, выполнится автоматический поиск по имени.")]
+    public Transform headTransform; // Трансформ головы для контроля осанки прямохождения
     private float previousDistanceToTarget;
     private int episodeSteps = 0;
 
@@ -80,17 +82,24 @@ public class G1Agent : Agent
             Debug.LogError("[G1Agent] КРИТИЧЕСКАЯ ОШИБКА: На роботе вообще не найдено ни одного компонента ArticulationBody!");
         }
 
-        // Автоматически находим трансформ головы для отслеживания осанки
-        Transform[] allTransforms = GetComponentsInChildren<Transform>();
-        foreach (var t in allTransforms)
+        // Автоматически находим трансформ головы для отслеживания осанки, если он не задан вручную
+        if (headTransform == null)
         {
-            string lowerName = t.name.ToLower();
-            if (lowerName.Contains("head") || lowerName.Contains("neck"))
+            Transform[] allTransforms = GetComponentsInChildren<Transform>();
+            foreach (var t in allTransforms)
             {
-                headTransform = t;
-                Debug.Log($"[G1Agent] Успешно найден трансформ головы для контроля осанки: {headTransform.name}");
-                break;
+                string lowerName = t.name.ToLower();
+                if (lowerName.Contains("head") || lowerName.Contains("neck"))
+                {
+                    headTransform = t;
+                    Debug.Log($"[G1Agent] Успешно найден трансформ головы для контроля осанки (автопоиск): {headTransform.name}");
+                    break;
+                }
             }
+        }
+        else
+        {
+            Debug.Log($"[G1Agent] Используется заданный вручную трансформ головы: {headTransform.name}");
         }
 
         // Заполняем список управляемых суставов и настраиваем их физику программно
@@ -231,22 +240,20 @@ public class G1Agent : Agent
             return;
         }
 
-        // ЗАЩИТА ОТ NaN: если физика взорвалась, подставляем безопасные дефолтные значения
-        float posY = float.IsNaN(rootBody.transform.position.y) ? initialPelvisPosition.y : rootBody.transform.position.y;
-        Quaternion rot = float.IsNaN(rootBody.transform.rotation.x) ? initialPelvisRotation : rootBody.transform.rotation;
-        
-        Vector3 toTarget = Vector3.zero;
-        if (target != null)
+        // ГЛОБАЛЬНАЯ ЗАЩИТА ОТ NaN: если физика взорвалась (NaN), заполняем наблюдения нулями.
+        // В OnActionReceived в этом же шаге сработает проверка на NaN, которая перезапустит эпизод.
+        if (float.IsNaN(rootBody.transform.position.y) || float.IsNaN(rootBody.transform.rotation.x))
         {
-            Vector3 rawToTarget = target.position - rootBody.transform.position;
-            toTarget = float.IsNaN(rawToTarget.x) ? Vector3.zero : rawToTarget;
+            for (int i = 0; i < 66; i++) sensor.AddObservation(0f);
+            return;
         }
 
         // 1. Реальная позиция таза по высоте и наклон корпуса (5 наблюдений)
-        sensor.AddObservation(posY);
-        sensor.AddObservation(rot);
+        sensor.AddObservation(rootBody.transform.position.y);
+        sensor.AddObservation(rootBody.transform.rotation);
 
         // 2. Вектор до цели от реального тела робота (3 наблюдения)
+        Vector3 toTarget = (target != null) ? (target.position - rootBody.transform.position) : Vector3.zero;
         sensor.AddObservation(toTarget);
 
         // 3. Углы суставов (58 наблюдений для 29 суставов)
@@ -254,10 +261,8 @@ public class G1Agent : Agent
         {
             if (joint.dofCount > 0)
             {
-                float jointPos = float.IsNaN(joint.jointPosition[0]) ? 0f : joint.jointPosition[0];
-                float jointVel = float.IsNaN(joint.jointVelocity[0]) ? 0f : joint.jointVelocity[0];
-                sensor.AddObservation(jointPos);
-                sensor.AddObservation(jointVel);
+                sensor.AddObservation(joint.jointPosition[0]);
+                sensor.AddObservation(joint.jointVelocity[0]);
             }
         }
     }
@@ -265,11 +270,6 @@ public class G1Agent : Agent
     public override void OnActionReceived(ActionBuffers actions)
     {
         episodeSteps++;
-        
-        if (episodeSteps == 1)
-        {
-            Debug.Log("[G1Agent] Первое действие получено от нейросети в этом эпизоде!");
-        }
 
         var continuousActions = actions.ContinuousActions;
         int actionIndex = 0;
@@ -313,8 +313,8 @@ public class G1Agent : Agent
             return;
         }
 
-        // Даем физике Unity 10 кадров на то, чтобы применить телепортацию и обновить координаты
-        if (episodeSteps > 10)
+        // Даем физике Unity 3 кадра на то, чтобы применить телепортацию и разрешить стартовые коллизии
+        if (episodeSteps > 3)
         {
             // 1. Штраф, если упал (просел ниже динамического порога высоты)
             if (currentY < fallThresholdHeight)
