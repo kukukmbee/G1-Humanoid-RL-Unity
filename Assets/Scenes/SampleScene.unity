@@ -13241,7 +13241,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -13250,9 +13250,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -38016,7 +38016,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -38025,9 +38025,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -38655,7 +38655,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -38664,9 +38664,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -113559,7 +113559,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -113568,9 +113568,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -135079,7 +135079,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -135088,9 +135088,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -205253,7 +205253,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -205262,9 +205262,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -219905,7 +219905,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -219914,9 +219914,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -226477,7 +226477,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -226486,9 +226486,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -251807,7 +251807,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -251816,9 +251816,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -263003,7 +263003,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -263012,9 +263012,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -291605,7 +291605,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -291614,9 +291614,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -296249,7 +296249,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -296258,9 +296258,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -312664,7 +312664,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -312673,9 +312673,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -344719,7 +344719,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -344728,9 +344728,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -355072,7 +355072,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -355081,9 +355081,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -382894,7 +382894,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -382903,9 +382903,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -383652,7 +383652,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -383661,9 +383661,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -409150,7 +409150,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -409159,9 +409159,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1
@@ -440814,7 +440814,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 66
+    VectorObservationSize: 72
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 29
@@ -440823,9 +440823,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 0467cc39768b06f48b18e47d936fa6a0, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: G1Walking
   TeamId: 0
   m_UseChildSensors: 1

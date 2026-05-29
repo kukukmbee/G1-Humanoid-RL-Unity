@@ -310,6 +310,8 @@ public class G1Agent : Agent
         Vector3 dirToTarget = (target != null) ? (target.position - rootBody.transform.position).normalized : rootBody.transform.forward;
         float facingDot = Vector3.Dot(rootBody.transform.forward, dirToTarget);
 
+        float postureMultiplier = 1.0f; // По умолчанию множитель награды за скорость 100%
+
         if (episodeSteps > 3)
         {
             // 1. Штраф, если упал
@@ -329,25 +331,30 @@ public class G1Agent : Agent
             }
             AddReward(uprightBonus * 0.002f); 
 
-            // 2.5 Контроль осанки (прямохождение)
+            // 2.5 Контроль осанки (ГЛОБАЛЬНЫЙ)
             if (headTransform != null)
             {
                 Vector3 pelvisPos = rootBody.transform.position;
                 Vector3 headPos = headTransform.position;
-                Vector3 robotForward = rootBody.transform.forward;
                 Vector3 pelvisToHead = headPos - pelvisPos;
                 
-                float forwardOffset = Vector3.Dot(pelvisToHead, robotForward);
+                // Проецируем смещение головы чисто на горизонтальную плоскость по направлению к цели
+                Vector3 pelvisToHeadFlat = new Vector3(pelvisToHead.x, 0, pelvisToHead.z);
+                Vector3 dirToTargetFlat = new Vector3(dirToTarget.x, 0, dirToTarget.z).normalized;
                 
-                // Жестко наказываем за отклонение спины назад (Matrix dodge)
-                if (forwardOffset < -0.05f) 
+                // Если голова ближе к цели, чем таз - это положительное число (наклон вперед).
+                float globalLeanForward = Vector3.Dot(pelvisToHeadFlat, dirToTargetFlat);
+                
+                // Штраф за отклонение назад (Matrix dodge)
+                if (globalLeanForward < -0.02f) 
                 {
-                    AddReward(-0.05f); 
+                    postureMultiplier = 0.1f; // Срезаем 90% награды за скорость!
+                    AddReward(-0.02f); // Небольшой прямой штраф
                 }
-                // Поощряем ровную спину или легкий наклон вперед (естественно для ходьбы)
-                else if (forwardOffset >= 0.0f && forwardOffset <= 0.1f)
+                // Поощряем наклон вперед, как у бегущего человека (от 5 до 20 см)
+                else if (globalLeanForward >= 0.05f && globalLeanForward <= 0.2f)
                 {
-                    AddReward(0.01f); 
+                    AddReward(0.02f); // Бонус за правильную позу спринтера
                 }
 
                 // Штраф за движение "приставным шагом"
@@ -367,8 +374,8 @@ public class G1Agent : Agent
 
             if (speedTowardTarget > 0)
             {
-                // Награда пропорциональна скорости движения к цели и правильности направления корпуса
-                AddReward(speedTowardTarget * 0.3f * directionMultiplier);
+                // Награда пропорциональна скорости, направлению корпуса И правильной осанке
+                AddReward(speedTowardTarget * 0.3f * directionMultiplier * postureMultiplier);
             }
             else
             {
