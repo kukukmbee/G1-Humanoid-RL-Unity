@@ -193,7 +193,7 @@ public class G1Agent : Agent
             
             // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: рандомизация направления (yaw),
             // чтобы агент не запоминал конкретный маршрут, а учил универсальную стратегию ходьбы
-            float randomYaw = Random.Range(0f, 360f);
+            float randomYaw = Random.Range(-30f, 30f);
             Quaternion randomRotation = initialPelvisRotation * Quaternion.Euler(0f, randomYaw, 0f);
             rootBody.TeleportRoot(safeSpawnPos, randomRotation);
             
