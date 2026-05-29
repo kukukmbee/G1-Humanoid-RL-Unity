@@ -14,7 +14,6 @@ public class G1Agent : Agent
     [Header("Posture Control")]
     [Tooltip("Трансформ головы для контроля осанки прямохождения. Если оставить пустым, выполнится автоматический поиск по имени.")]
     public Transform headTransform; // Трансформ головы для контроля осанки прямохождения
-    private float previousDistanceToTarget;
     private int episodeSteps = 0;
 
     // Переменные для запоминания стартовой позы и дефолтных таргетов суставов
@@ -126,7 +125,6 @@ public class G1Agent : Agent
                 joints.Add(body);
                 
                 // ПРОГРАММНАЯ НАСТРОЙКА ЕСТЕСТВЕННОЙ ПОЗЫ РУК (OVERRIDE):
-                // Если мы хотим, чтобы руки висели красиво и естественно вдоль тела, мы переопределяем их дефолтные углы.
                 float defaultTarget = body.xDrive.target;
 
                 if (lowerName.Contains("elbow"))
@@ -153,7 +151,6 @@ public class G1Agent : Agent
                 initialJointTargetsDegrees.Add(defaultTarget);
                 
                 // Запоминаем исходный физический угол сустава в радианах
-                // (Для переопределенных суставов переводим новые градусы в радианы, чтобы физика сбросилась без рывка)
                 if (lowerName.Contains("elbow") || lowerName.Contains("shoulder") || lowerName.Contains("knee"))
                 {
                     initialJointPositions.Add(defaultTarget * Mathf.Deg2Rad);
@@ -191,10 +188,14 @@ public class G1Agent : Agent
             rootBody.linearVelocity = Vector3.zero;
             rootBody.angularVelocity = Vector3.zero;
 
-            // БЕЗОПАСНЫЙ СПАВН: Приподнимаем робота на 3 сантиметра (0.03м) вверх от исходной точки,
-            // чтобы ступни ног гарантированно не врезались под пол в момент телепортации!
+            // БЕЗОПАСНЫЙ СПАВН: Приподнимаем робота на 3 сантиметра (0.03м) вверх от исходной точки
             Vector3 safeSpawnPos = initialPelvisPosition + new Vector3(0f, 0.03f, 0f);
-            rootBody.TeleportRoot(safeSpawnPos, initialPelvisRotation);
+            
+            // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: рандомизация направления (yaw),
+            // чтобы агент не запоминал конкретный маршрут, а учил универсальную стратегию ходьбы
+            float randomYaw = Random.Range(0f, 360f);
+            Quaternion randomRotation = initialPelvisRotation * Quaternion.Euler(0f, randomYaw, 0f);
+            rootBody.TeleportRoot(safeSpawnPos, randomRotation);
             
             // Повторно обнуляем скорости после телепортации
             rootBody.linearVelocity = Vector3.zero;
@@ -206,8 +207,7 @@ public class G1Agent : Agent
         {
             var joint = joints[i];
             
-            // МГНОВЕННЫЙ СБРОС ФИЗИЧЕСКОГО УГЛА (в радианах):
-            // Это мгновенно выпрямляет ноги и ставит руки в красивую позу в воздухе перед первым кадром физики
+            // МГНОВЕННЫЙ СБРОС ФИЗИЧЕСКОГО УГЛА
             if (joint.dofCount > 0 && i < initialJointPositions.Count)
             {
                 joint.jointPosition = new ArticulationReducedSpace(initialJointPositions[i]);
@@ -216,47 +216,44 @@ public class G1Agent : Agent
             joint.jointVelocity = new ArticulationReducedSpace(0f);
             
             var drive = joint.xDrive;
-            // Сбрасываем к исходному таргету в градусах
             drive.target = initialJointTargetsDegrees[i];
             drive.targetVelocity = 0f;
             joint.xDrive = drive;
         }
 
-        // Запоминаем начальную дистанцию до цели по реальному телу робота
-        if (target != null && rootBody != null)
-        {
-            previousDistanceToTarget = Vector3.Distance(rootBody.transform.position, target.position);
-        }
-
-        Debug.Log("[G1Agent] Эпизод начат! Физические углы суставов мгновенно сброшены. Удар моторов устранен.");
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
         if (rootBody == null)
         {
-            // Резервный сбор пустых наблюдений, чтобы не ломать размерность
-            for (int i = 0; i < 66; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 72; i++) sensor.AddObservation(0f);
             return;
         }
 
-        // ГЛОБАЛЬНАЯ ЗАЩИТА ОТ NaN: если физика взорвалась (NaN), заполняем наблюдения нулями.
-        // В OnActionReceived в этом же шаге сработает проверка на NaN, которая перезапустит эпизод.
+        // ГЛОБАЛЬНАЯ ЗАЩИТА ОТ NaN
         if (float.IsNaN(rootBody.transform.position.y) || float.IsNaN(rootBody.transform.rotation.x))
         {
-            for (int i = 0; i < 66; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 72; i++) sensor.AddObservation(0f);
             return;
         }
 
-        // 1. Реальная позиция таза по высоте и наклон корпуса (5 наблюдений)
+        // 1. Позиция таза по высоте и наклон корпуса (5 наблюдений)
         sensor.AddObservation(rootBody.transform.position.y);
         sensor.AddObservation(rootBody.transform.rotation);
 
-        // 2. Вектор до цели от реального тела робота (3 наблюдения)
-        Vector3 toTarget = (target != null) ? (target.position - rootBody.transform.position) : Vector3.zero;
-        sensor.AddObservation(toTarget);
+        // 2. Скорость таза: линейная и угловая (6 наблюдений)
+        // Позволяет агенту различать «стою» и «падаю/иду» — критический сигнал для баланса
+        sensor.AddObservation(rootBody.linearVelocity);
+        sensor.AddObservation(rootBody.angularVelocity);
 
-        // 3. Углы суставов (58 наблюдений для 29 суставов)
+        // 3. Вектор до цели в ЛОКАЛЬНОМ пространстве робота (3 наблюдения)
+        // InverseTransformDirection обобщает опыт при любом стартовом повороте
+        Vector3 worldToTarget = (target != null) ? (target.position - rootBody.transform.position) : Vector3.zero;
+        Vector3 localToTarget = rootBody.transform.InverseTransformDirection(worldToTarget);
+        sensor.AddObservation(localToTarget);
+
+        // 4. Углы суставов (58 наблюдений для 29 суставов)
         foreach (var joint in joints)
         {
             if (joint.dofCount > 0)
@@ -281,14 +278,11 @@ public class G1Agent : Agent
                 var drive = joint.xDrive;
                 float actionVal = Mathf.Clamp(continuousActions[actionIndex], -1f, 1f);
                 
-                // УПРАВЛЕНИЕ ЧЕРЕЗ СМЕЩЕНИЕ (Offset-based control):
-                // Действие нейросети (-1..1) управляет отклонением от исходной позы стояния на +-65 градусов,
-                // что гарантирует стабильный старт без мгновенного складывания коленей.
+                // УПРАВЛЕНИЕ ЧЕРЕЗ СМЕЩЕНИЕ
                 float defaultAngle = initialJointTargetsDegrees[actionIndex];
                 float maxDeviation = 65f; 
                 
                 float targetAngle = defaultAngle + actionVal * maxDeviation;
-                // Не выходим за физические лимиты сустава
                 targetAngle = Mathf.Clamp(targetAngle, drive.lowerLimit, drive.upperLimit);
                 
                 drive.target = targetAngle;
@@ -300,11 +294,10 @@ public class G1Agent : Agent
 
         if (rootBody == null) return;
 
-        // Вычисляем показатели для проверки падения по РЕАЛЬНОМУ физическому телу робота
         float currentY = rootBody.transform.position.y;
         float uprightBonus = Vector3.Dot(rootBody.transform.up, Vector3.up);
 
-        // ЗАЩИТА ОТ NaN: если физика взорвалась (NaN), немедленно перезапускаем эпизод
+        // ЗАЩИТА ОТ NaN: если физика взорвалась, немедленно перезапускаем эпизод
         if (float.IsNaN(currentY) || float.IsNaN(uprightBonus))
         {
             Debug.LogWarning("[G1Agent] ВНИМАНИЕ: Физика взорвалась (NaN)! Немедленный безопасный перезапуск.");
@@ -313,85 +306,92 @@ public class G1Agent : Agent
             return;
         }
 
-        // Даем физике Unity 3 кадра на то, чтобы применить телепортацию и разрешить стартовые коллизии
+        // Вычисляем вектор направления на цель и facingDot (Вынесено в правильную область видимости!)
+        Vector3 dirToTarget = (target != null) ? (target.position - rootBody.transform.position).normalized : rootBody.transform.forward;
+        float facingDot = Vector3.Dot(rootBody.transform.forward, dirToTarget);
+
         if (episodeSteps > 3)
         {
-            // 1. Штраф, если упал (просел ниже динамического порога высоты)
+            // 1. Штраф, если упал
             if (currentY < fallThresholdHeight)
             {
-                Debug.Log($"[G1Agent] Эпизод завершен (Падение)! Шагов: {episodeSteps}, Y: {currentY:F2}м (порог {fallThresholdHeight:F2}м)");
                 SetReward(-2.0f);
                 EndEpisode();
                 return;
             }
 
-            // 2. Бонус за удержание равновесия (вертикальность корпуса)
-            if (uprightBonus < 0.5f) // Если робот сильно завалился
+            // 2. Бонус за удержание равновесия
+            if (uprightBonus < 0.5f) 
             {
-                Debug.Log($"[G1Agent] Эпизод завершен (Завалился)! Шагов: {episodeSteps}, Upright: {uprightBonus:F2}");
                 SetReward(-1.0f);
                 EndEpisode();
                 return;
             }
-            AddReward(uprightBonus * 0.002f); // Поощряем вертикальную осанку
+            AddReward(uprightBonus * 0.002f); 
 
-            // 2.5 Бонус за правильное положение головы над центром тяжести (тазом) - прямохождение
+            // 2.5 Контроль осанки (прямохождение)
             if (headTransform != null)
             {
                 Vector3 pelvisPos = rootBody.transform.position;
                 Vector3 headPos = headTransform.position;
-                
                 Vector3 robotForward = rootBody.transform.forward;
-                Vector3 robotRight = rootBody.transform.right;
                 Vector3 pelvisToHead = headPos - pelvisPos;
                 
                 float forwardOffset = Vector3.Dot(pelvisToHead, robotForward);
-                float lateralOffset = Vector3.Dot(pelvisToHead, robotRight);
                 
-                // Бонус за удержание головы строго по центру (боковое отклонение не более 7 см)
-                if (Mathf.Abs(lateralOffset) < 0.07f)
+                // Жестко наказываем за отклонение спины назад (Matrix dodge)
+                if (forwardOffset < -0.05f) 
                 {
-                    AddReward(0.001f);
+                    AddReward(-0.05f); 
                 }
-                
-                // Бонус за осанку прямохождения (голова над тазом или слегка впереди на 1-8 см для естественного наклона при ходьбе)
-                if (forwardOffset >= -0.02f && forwardOffset <= 0.08f)
+                // Поощряем ровную спину или легкий наклон вперед (естественно для ходьбы)
+                else if (forwardOffset >= 0.0f && forwardOffset <= 0.1f)
                 {
-                    AddReward(0.002f); // Поощряем красивую осанку прямохождения
+                    AddReward(0.01f); 
                 }
-                else
+
+                // Штраф за движение "приставным шагом"
+                if (facingDot < 0.8f) 
                 {
-                    AddReward(-0.002f); // Наказываем за сильный «наклон» вперед или завал назад
+                    AddReward(-0.02f); 
                 }
             }
         }
 
         if (target != null)
         {
-            // 3. Награда за приближение к цели
-            float currentDistance = Vector3.Distance(rootBody.transform.position, target.position);
-            float progress = previousDistanceToTarget - currentDistance;
-            previousDistanceToTarget = currentDistance;
+            // 3. Награда за скорость движения к цели (мгновенная проекция linearVelocity)
+            // Чистый физический сигнал без накопления шума дельты позиций между шагами
+            float speedTowardTarget = Vector3.Dot(rootBody.linearVelocity, dirToTarget);
+            float directionMultiplier = Mathf.Clamp01(facingDot);
 
-            // Награждаем за скорость движения в сторону цели
-            AddReward(progress * 15f);
+            if (speedTowardTarget > 0)
+            {
+                // Награда пропорциональна скорости движения к цели и правильности направления корпуса
+                AddReward(speedTowardTarget * 0.3f * directionMultiplier);
+            }
+            else
+            {
+                // Мягкий штраф за отдаление — позволяет роботу маневрировать и разворачиваться
+                AddReward(speedTowardTarget * 0.1f);
+            }
 
             // 4. Достижение цели
+            float currentDistance = Vector3.Distance(rootBody.transform.position, target.position);
             if (currentDistance < 1.0f)
             {
-                Debug.Log($"[G1Agent] Эпизод завершен (Успех)! Робот дошел до цели! Шагов: {episodeSteps}");
+                Debug.Log($"[G1Agent] Эпизод завершен (Успех)! Шагов: {episodeSteps}");
                 SetReward(10.0f);
                 EndEpisode();
             }
         }
 
-        // 5. Штраф за дерганье и резкие движения (регуляризация усилий)
+        // 5. Штраф за дерганье и резкие движения
         float actionPenalty = 0f;
         for (int i = 0; i < continuousActions.Length; i++)
         {
             actionPenalty += Mathf.Abs(continuousActions[i]);
         }
-        // Небольшой штраф, чтобы робот не дергал суставами без необходимости
         AddReward(- (actionPenalty / joints.Count) * 0.001f);
     }
 }
