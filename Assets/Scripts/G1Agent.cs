@@ -193,7 +193,7 @@ public class G1Agent : Agent
             
             // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: рандомизация направления (yaw),
             // чтобы агент не запоминал конкретный маршрут, а учил универсальную стратегию ходьбы
-            float randomYaw = Random.Range(-30f, 30f);
+            float randomYaw = Random.Range(-180f, 180f);
             Quaternion randomRotation = initialPelvisRotation * Quaternion.Euler(0f, randomYaw, 0f);
             rootBody.TeleportRoot(safeSpawnPos, randomRotation);
             
@@ -357,8 +357,8 @@ public class G1Agent : Agent
                     AddReward(0.02f); // Бонус за правильную позу спринтера
                 }
 
-                // Штраф за движение "приставным шагом"
-                if (facingDot < 0.8f) 
+                // Штраф за движение "приставным шагом" (ослаблен до 60 градусов для свободы маневра)
+                if (facingDot < 0.5f) 
                 {
                     AddReward(-0.02f); 
                 }
@@ -370,7 +370,8 @@ public class G1Agent : Agent
             // 3. Награда за скорость движения к цели (мгновенная проекция linearVelocity)
             // Чистый физический сигнал без накопления шума дельты позиций между шагами
             float speedTowardTarget = Vector3.Dot(rootBody.linearVelocity, dirToTarget);
-            float directionMultiplier = Mathf.Clamp01(facingDot);
+            // Даем минимум 20% награды за скорость движения к цели, даже при развороте спиной
+            float directionMultiplier = Mathf.Clamp(facingDot, 0.2f, 1.0f);
 
             if (speedTowardTarget > 0)
             {
