@@ -27,6 +27,11 @@ public class G1Agent : Agent
 
     public override void Initialize()
     {
+        // Очищаем списки для предотвращения дублирования суставов при перезапусках Play Mode в редакторе Unity
+        joints.Clear();
+        initialJointTargetsDegrees.Clear();
+        initialJointPositions.Clear();
+
         // Проверяем наличие DecisionRequester, без него OnActionReceived не будет вызываться
         DecisionRequester dr = GetComponent<DecisionRequester>();
         if (dr == null)
@@ -225,16 +230,17 @@ public class G1Agent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
+        int obsSize = 14 + joints.Count * 2; // Динамически вычисляем точный размер наблюдений (72 при 29 суставах)
         if (rootBody == null)
         {
-            for (int i = 0; i < 72; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < obsSize; i++) sensor.AddObservation(0f);
             return;
         }
 
         // ГЛОБАЛЬНАЯ ЗАЩИТА ОТ NaN
         if (float.IsNaN(rootBody.transform.position.y) || float.IsNaN(rootBody.transform.rotation.x))
         {
-            for (int i = 0; i < 72; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < obsSize; i++) sensor.AddObservation(0f);
             return;
         }
 
@@ -322,14 +328,15 @@ public class G1Agent : Agent
                 return;
             }
 
-            // 2. Бонус за удержание равновесия
+            // 2. Удержание равновесия (Критически важный баланс)
             if (uprightBonus < 0.5f) 
             {
                 SetReward(-1.0f);
                 EndEpisode();
                 return;
             }
-            AddReward(uprightBonus * 0.002f); 
+            // Поднят upright коэффициент с 0.002 до 0.015 для повышения приоритета баланса
+            AddReward(uprightBonus * 0.015f); 
 
             // 2.5 Контроль осанки (ГЛОБАЛЬНЫЙ)
             if (headTransform != null)
@@ -352,31 +359,31 @@ public class G1Agent : Agent
                     AddReward(-0.02f); // Небольшой прямой штраф
                 }
                 // Поощряем наклон вперед, как у бегущего человека (от 5 до 20 см)
+                // Снижен posture коэффицент с 0.02 до 0.004 для правильной иерархии (баланс важнее осанки)
                 else if (globalLeanForward >= 0.05f && globalLeanForward <= 0.2f)
                 {
-                    AddReward(0.02f); // Бонус за правильную позу спринтера
+                    AddReward(0.004f); 
                 }
+            }
 
-                // Штраф за движение "приставным шагом" (ослаблен до 60 градусов для свободы маневра)
-                if (facingDot < 0.5f) 
-                {
-                    AddReward(-0.02f); 
-                }
+            // 2.6 Штраф за движение "приставным шагом" (вынесен за блок headTransform)
+            if (facingDot < 0.5f) 
+            {
+                AddReward(-0.02f); 
             }
         }
 
         if (target != null)
         {
             // 3. Награда за скорость движения к цели (мгновенная проекция linearVelocity)
-            // Чистый физический сигнал без накопления шума дельты позиций между шагами
             float speedTowardTarget = Vector3.Dot(rootBody.linearVelocity, dirToTarget);
-            // Даем минимум 20% награды за скорость движения к цели, даже при развороте спиной
-            float directionMultiplier = Mathf.Clamp(facingDot, 0.2f, 1.0f);
+            // Изменен directionMultiplier на Clamp01: робот получает 0% награды за скорость, если идет спиной (facingDot <= 0)
+            float directionMultiplier = Mathf.Clamp01(facingDot);
 
             if (speedTowardTarget > 0)
             {
-                // Награда пропорциональна скорости, направлению корпуса И правильной осанке
-                AddReward(speedTowardTarget * 0.3f * directionMultiplier * postureMultiplier);
+                // Награда скорректирована с 0.3 до 0.2 для баланса с остальными членами наград
+                AddReward(speedTowardTarget * 0.2f * directionMultiplier * postureMultiplier);
             }
             else
             {
@@ -389,8 +396,9 @@ public class G1Agent : Agent
             if (currentDistance < 1.0f)
             {
                 Debug.Log($"[G1Agent] Эпизод завершен (Успех)! Шагов: {episodeSteps}");
-                SetReward(10.0f);
+                AddReward(10.0f); // Заменено SetReward на AddReward, чтобы не стирать историю обучения эпизода!
                 EndEpisode();
+                return;
             }
         }
 
@@ -400,6 +408,7 @@ public class G1Agent : Agent
         {
             actionPenalty += Mathf.Abs(continuousActions[i]);
         }
-        AddReward(- (actionPenalty / joints.Count) * 0.001f);
+        // Деление переведено на continuousActions.Length, штраф поднят в 10 раз (до 0.01) для реального влияния на плавность
+        AddReward(- (actionPenalty / continuousActions.Length) * 0.01f);
     }
 }
