@@ -105,9 +105,9 @@ behaviors:
    ```bash
    conda activate mlagents
    ```
-2. Navigate to the project root directory:
-   ```cmd
-   cd /d F:\unity\ml
+2. Navigate to your project root directory:
+   ```bash
+   cd <your_project_path>
    ```
 3. Execute the training command:
    ```bash
