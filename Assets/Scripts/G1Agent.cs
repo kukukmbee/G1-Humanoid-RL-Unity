@@ -7,37 +7,45 @@ using System.Collections.Generic;
 public class G1Agent : Agent
 {
     [Header("Robot Parts")]
+    [Tooltip("Список управляемых суставов робота (ArticulationBody). Заполняется автоматически.")]
     public List<ArticulationBody> joints = new List<ArticulationBody>();
+    [Tooltip("Целевая точка назначения (сфера B).")]
     public Transform target; 
 
-    private ArticulationBody rootBody;
+    private ArticulationBody rootBody; // Корневое физическое тело (таз)
     
     [Header("Posture Control")]
-    [Tooltip("Трансформ головы для контроля осанки. Если пустой, выполнится автопоиск.")]
+    [Tooltip("Трансформ головы для контроля осанки прямохождения. Если пустой, выполнится автопоиск по имени.")]
     public Transform headTransform;
     
     [Header("Foot Ground Sensors")]
+    [Tooltip("Датчик касания левой стопы.")]
     public FootSensor leftFoot;
+    [Tooltip("Датчик касания правой стопы.")]
     public FootSensor rightFoot;
 
     private int episodeSteps = 0;
-    private int obsSize;
+    private int obsSize; // Кэшированный размер вектора наблюдений (74)
 
+    // Исходные трансформации контейнера и физического таза робота
     private Vector3 initialLocalPosition;
     private Quaternion initialLocalRotation;
     private Vector3 initialPelvisPosition;
     private Quaternion initialPelvisRotation;
     
-    private List<float> initialJointTargetsDegrees = new List<float>();
-    private List<float> initialJointPositions = new List<float>();
-    private float fallThresholdHeight;
+    // Исходные угловые параметры суставов для точного сброса
+    private List<float> initialJointTargetsDegrees = new List<float>(); // Углы приводов xDrive (градусы)
+    private List<float> initialJointPositions = new List<float>();       // Физические углы звеньев (радианы)
+    private float fallThresholdHeight; // Динамический порог высоты падения (60% от стартовой)
 
     public override void Initialize()
     {
+        // Очистка списков для предотвращения дублирования данных при перезапусках Play Mode в редакторе
         joints.Clear();
         initialJointTargetsDegrees.Clear();
         initialJointPositions.Clear();
 
+        // Автоматическое добавление DecisionRequester при его отсутствии
         DecisionRequester dr = GetComponent<DecisionRequester>();
         if (dr == null)
         {
@@ -45,9 +53,11 @@ public class G1Agent : Agent
             dr.DecisionPeriod = 5;
         }
 
+        // Запоминание стартового положения родительского контейнера
         initialLocalPosition = transform.localPosition;
         initialLocalRotation = transform.localRotation;
 
+        // Поиск корневого тела робота (ArticulationBody с флагом isRoot)
         ArticulationBody[] allBodies = GetComponentsInChildren<ArticulationBody>();
         foreach (var body in allBodies)
         {
@@ -67,9 +77,12 @@ public class G1Agent : Agent
         {
             initialPelvisPosition = rootBody.transform.position;
             initialPelvisRotation = rootBody.transform.rotation;
+            
+            // Динамический расчет критической высоты падения (60% от исходной высоты таза)
             fallThresholdHeight = initialPelvisPosition.y * 0.6f;
         }
 
+        // Автоматический поиск головы для контроля осанки
         if (headTransform == null)
         {
             Transform[] allTransforms = GetComponentsInChildren<Transform>();
@@ -84,12 +97,15 @@ public class G1Agent : Agent
             }
         }
 
+        // Настройка физических параметров звеньев и сбор управляемых суставов
         foreach (var body in allBodies)
         {
+            // Повышение стабильности физического симулятора (итерации расчетов сочленений)
             body.solverIterations = 30;
             body.solverVelocityIterations = 12;
 
             string lowerName = body.name.ToLower();
+            // Включение Continuous Speculative для стоп для предотвращения проваливания сквозь пол
             if (lowerName.Contains("ankle_roll") || lowerName.Contains("foot") || lowerName.Contains("toe"))
             {
                 body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
@@ -97,22 +113,25 @@ public class G1Agent : Agent
 
             if (body == rootBody || body.isRoot) continue;
             
+            // Сбор подвижных суставов (исключая фиксированные сочленения)
             if (body.jointType != ArticulationJointType.FixedJoint)
             {
                 joints.Add(body);
                 
                 float defaultTarget = body.xDrive.target;
+                
+                // Программный override дефолтных углов для формирования пружинящей стартовой позы
                 if (lowerName.Contains("elbow"))
                 {
-                    defaultTarget = 15f; 
+                    defaultTarget = 15f; // Естественное легкое сгибание локтей
                 }
                 else if (lowerName.Contains("shoulder_pitch"))
                 {
-                    defaultTarget = 0f; 
+                    defaultTarget = 0f; // Руки опущены вниз
                 }
                 else if (lowerName.Contains("shoulder_roll"))
                 {
-                    defaultTarget = 0f; 
+                    defaultTarget = 0f; // Руки прижаты к бокам
                 }
                 else if (lowerName.Contains("shoulder_yaw"))
                 {
@@ -120,12 +139,14 @@ public class G1Agent : Agent
                 }
                 else if (lowerName.Contains("knee"))
                 {
-                    defaultTarget = 25f; 
+                    defaultTarget = 25f; // Подсогнутые колени для амортизации шага
                 }
                 
                 initialJointTargetsDegrees.Add(defaultTarget);
+                // Сохранение углов в радианах для жесткого сброса физического состояния
                 initialJointPositions.Add(defaultTarget * Mathf.Deg2Rad);
                 
+                // Настройка параметров PD-контроллера приводов суставов
                 var drive = body.xDrive;
                 drive.stiffness = 200f; 
                 drive.damping = 20f;    
@@ -133,6 +154,7 @@ public class G1Agent : Agent
             }
         }
 
+        // Кэширование размера наблюдений для исключения лишних калькуляций во время шагов
         obsSize = 16 + joints.Count * 2;
     }
 
@@ -140,32 +162,39 @@ public class G1Agent : Agent
     {
         episodeSteps = 0;
 
+        // Случайный поворот родительского контейнера по оси Y (полные 360 градусов)
         float randomYaw = Random.Range(-180f, 180f);
         transform.localPosition = initialLocalPosition;
         transform.localRotation = initialLocalRotation * Quaternion.Euler(0f, randomYaw, 0f);
         
         if (rootBody != null)
         {
+            // Обнуление физических скоростей перед телепортацией
             rootBody.linearVelocity = Vector3.zero;
             rootBody.angularVelocity = Vector3.zero;
 
+            // Сброс положения таза с безопасным зазором по высоте (+3 см)
             Vector3 safeSpawnPos = initialPelvisPosition + new Vector3(0f, 0.03f, 0f);
             Quaternion randomRotation = initialPelvisRotation * Quaternion.Euler(0f, randomYaw, 0f);
             rootBody.TeleportRoot(safeSpawnPos, randomRotation);
             
+            // Вторичное обнуление скоростей для предотвращения физических артефактов
             rootBody.linearVelocity = Vector3.zero;
             rootBody.angularVelocity = Vector3.zero;
         }
 
+        // Сброс всех суставов к исходной позе с обнулением их угловых скоростей
         for (int i = 0; i < joints.Count; i++)
         {
             var joint = joints[i];
             if (joint.dofCount > 0 && i < initialJointPositions.Count)
             {
+                // Принудительная установка физического угла звена в радианах
                 joint.jointPosition = new ArticulationReducedSpace(initialJointPositions[i]);
             }
             joint.jointVelocity = new ArticulationReducedSpace(0f);
             
+            // Сброс целевых значений PD-контроллера xDrive
             var drive = joint.xDrive;
             drive.target = initialJointTargetsDegrees[i];
             drive.targetVelocity = 0f;
@@ -175,32 +204,34 @@ public class G1Agent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
+        // Заглушка при критическом отсутствии корневого тела
         if (rootBody == null)
         {
             for (int i = 0; i < obsSize; i++) sensor.AddObservation(0f);
             return;
         }
 
+        // Безопасный перезапуск при возникновении NaN в координатах или ротации
         if (float.IsNaN(rootBody.transform.position.y) || float.IsNaN(rootBody.transform.rotation.x))
         {
             for (int i = 0; i < obsSize; i++) sensor.AddObservation(0f);
             return;
         }
 
-        // 1. Позиция таза и наклон корпуса (5)
+        // 1. Координата таза по высоте и глобальный кватернион вращения (5 наблюдений)
         sensor.AddObservation(rootBody.transform.position.y);
         sensor.AddObservation(rootBody.transform.rotation);
 
-        // 2. Линейная и угловая скорости таза (6)
+        // 2. Линейная и угловая скорости таза (6 наблюдений)
         sensor.AddObservation(rootBody.linearVelocity);
         sensor.AddObservation(rootBody.angularVelocity);
 
-        // 3. Локальный вектор направления на цель (3)
+        // 3. Направление до цели, спроецированное в локальную систему координат робота (3 наблюдения)
         Vector3 worldToTarget = (target != null) ? (target.position - rootBody.transform.position) : Vector3.zero;
         Vector3 localToTarget = rootBody.transform.InverseTransformDirection(worldToTarget);
         sensor.AddObservation(localToTarget);
 
-        // 4. Позиции и скорости суставов (joints * 2)
+        // 4. Текущий угол и угловая скорость каждого управляемого сустава (58 наблюдений при 29 суставах)
         foreach (var joint in joints)
         {
             if (joint.dofCount > 0)
@@ -210,7 +241,7 @@ public class G1Agent : Agent
             }
         }
 
-        // 5. Состояния контакта стоп с землей (2)
+        // 5. Бинарные сигналы контакта левой и правой стопы с землей (2 наблюдения)
         sensor.AddObservation(leftFoot != null && leftFoot.isGrounded ? 1f : 0f);
         sensor.AddObservation(rightFoot != null && rightFoot.isGrounded ? 1f : 0f);
     }
@@ -222,6 +253,7 @@ public class G1Agent : Agent
         var continuousActions = actions.ContinuousActions;
         int actionIndex = 0;
 
+        // Преобразование нормализованных действий сети (-1..1) в целевые углы суставов
         foreach (var joint in joints)
         {
             if (actionIndex < continuousActions.Length && joint.dofCount > 0)
@@ -229,8 +261,9 @@ public class G1Agent : Agent
                 var drive = joint.xDrive;
                 float actionVal = Mathf.Clamp(continuousActions[actionIndex], -1f, 1f);
                 
+                // Расчет целевого угла как смещения относительно дефолтной стартовой позы
                 float defaultAngle = initialJointTargetsDegrees[actionIndex];
-                float maxDeviation = 65f; 
+                float maxDeviation = 65f; // Максимальная амплитуда движения сустава
                 
                 float targetAngle = defaultAngle + actionVal * maxDeviation;
                 targetAngle = Mathf.Clamp(targetAngle, drive.lowerLimit, drive.upperLimit);
@@ -247,6 +280,7 @@ public class G1Agent : Agent
         float currentY = rootBody.transform.position.y;
         float uprightBonus = Vector3.Dot(rootBody.transform.up, Vector3.up);
 
+        // Мгновенное завершение эпизода при критическом сбое физической симуляции (NaN)
         if (float.IsNaN(currentY) || float.IsNaN(uprightBonus))
         {
             SetReward(-2.0f);
@@ -254,13 +288,14 @@ public class G1Agent : Agent
             return;
         }
 
+        // Расчет вектора направления на цель в горизонтальной плоскости
         Vector3 dirToTarget = (target != null) ? (target.position - rootBody.transform.position).normalized : rootBody.transform.forward;
         float facingDot = Vector3.Dot(rootBody.transform.forward, dirToTarget);
-        float postureMultiplier = 1.0f; 
+        float postureMultiplier = 1.0f; // Коэффициент штрафа за плохую осанку
 
         if (episodeSteps > 3)
         {
-            // Штраф при падении
+            // 1. Штраф при падении ниже критической высоты
             if (currentY < fallThresholdHeight)
             {
                 SetReward(-2.0f);
@@ -268,22 +303,24 @@ public class G1Agent : Agent
                 return;
             }
 
-            // Штраф при потере баланса
+            // 2. Удержание баланса (жесткое наказание за критический завал корпуса)
             if (uprightBonus < 0.5f) 
             {
                 SetReward(-1.0f);
                 EndEpisode();
                 return;
             }
+            // Поощрение стабильного вертикального положения таза
             AddReward(uprightBonus * 0.015f); 
 
-            // Контроль глобального наклона корпуса вперед
+            // 3. Контроль глобального наклона корпуса вперед по направлению к цели
             if (headTransform != null)
             {
                 Vector3 pelvisPos = rootBody.transform.position;
                 Vector3 headPos = headTransform.position;
                 Vector3 pelvisToHead = headPos - pelvisPos;
                 
+                // Проекция вектора осанки на горизонтальную плоскость движения
                 Vector3 pelvisToHeadFlat = new Vector3(pelvisToHead.x, 0, pelvisToHead.z);
                 Vector3 dirToTargetFlat = new Vector3(dirToTarget.x, 0, dirToTarget.z).normalized;
                 
@@ -291,16 +328,18 @@ public class G1Agent : Agent
                 
                 if (globalLeanForward < -0.02f) 
                 {
+                    // Жесткое снижение награды за скорость при отклонении спины назад
                     postureMultiplier = 0.1f; 
                     AddReward(-0.02f); 
                 }
                 else if (globalLeanForward >= 0.05f && globalLeanForward <= 0.2f)
                 {
+                    // Поощрение естественного наклона корпуса вперед при ходьбе (5-20 см)
                     AddReward(0.004f); 
                 }
             }
 
-            // Штраф за движение приставным шагом
+            // 4. Штраф за некорректное направление движения (приставной шаг, боковое скольжение)
             if (facingDot < 0.5f) 
             {
                 AddReward(-0.02f); 
@@ -309,8 +348,9 @@ public class G1Agent : Agent
 
         if (target != null)
         {
-            // Награда за скорость по вектору к цели
+            // 5. Награда за мгновенную проекцию линейной скорости на вектор к цели
             float speedTowardTarget = Vector3.Dot(rootBody.linearVelocity, dirToTarget);
+            // Исключение поощрения за движение задом наперед (facingDot <= 0)
             float directionMultiplier = Mathf.Clamp01(facingDot);
 
             if (speedTowardTarget > 0)
@@ -319,21 +359,23 @@ public class G1Agent : Agent
             }
             else
             {
+                // Мягкий штраф при отдалении от цели для стимуляции разворота на месте
                 AddReward(speedTowardTarget * 0.1f);
             }
 
-            // Достижение целевой зоны
+            // 6. Успешное достижение целевой зоны (сфера радиусом 1 метр)
             float currentDistance = Vector3.Distance(rootBody.transform.position, target.position);
             if (currentDistance < 1.0f)
             {
                 Debug.Log($"[G1Agent] Эпизод завершен (Успех)! Шагов: {episodeSteps}");
+                // Использование AddReward для сохранения накопленного качественного сигнала
                 AddReward(10.0f); 
                 EndEpisode();
                 return;
             }
         }
 
-        // Наказание за резкие управляющие воздействия (минимизация рывков)
+        // 7. Штраф за резкие рывки и нерациональный расход энергии (минимизация микровибраций суставов)
         float actionPenalty = 0f;
         for (int i = 0; i < continuousActions.Length; i++)
         {
