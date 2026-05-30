@@ -14,6 +14,11 @@ public class G1Agent : Agent
     [Header("Posture Control")]
     [Tooltip("Трансформ головы для контроля осанки прямохождения. Если оставить пустым, выполнится автоматический поиск по имени.")]
     public Transform headTransform; // Трансформ головы для контроля осанки прямохождения
+    
+    [Header("Foot Ground Sensors")]
+    public FootSensor leftFoot;
+    public FootSensor rightFoot;
+
     private int episodeSteps = 0;
 
     // Переменные для запоминания стартовой позы и дефолтных таргетов суставов
@@ -155,19 +160,8 @@ public class G1Agent : Agent
                 
                 initialJointTargetsDegrees.Add(defaultTarget);
                 
-                // Запоминаем исходный физический угол сустава в радианах
-                if (lowerName.Contains("elbow") || lowerName.Contains("shoulder") || lowerName.Contains("knee"))
-                {
-                    initialJointPositions.Add(defaultTarget * Mathf.Deg2Rad);
-                }
-                else if (body.dofCount > 0)
-                {
-                    initialJointPositions.Add(body.jointPosition[0]);
-                }
-                else
-                {
-                    initialJointPositions.Add(0f);
-                }
+                // Запоминаем исходный физический угол сустава в радианах на основе его целевого угла (исправлены смешанные единицы)
+                initialJointPositions.Add(defaultTarget * Mathf.Deg2Rad);
                 
                 // Настраиваем жесткость сустава (PD контроллер)
                 var drive = body.xDrive;
@@ -184,8 +178,15 @@ public class G1Agent : Agent
         episodeSteps = 0;
 
         // Восстанавливаем исходное локальное положение контейнера
+    public override void OnEpisodeBegin()
+    {
+        episodeSteps = 0;
+
+        // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: поворачиваем и сам родительский контейнер,
+        // чтобы исключить рассинхронизацию локальных систем координат и физики
+        float randomYaw = Random.Range(-180f, 180f);
         transform.localPosition = initialLocalPosition;
-        transform.localRotation = initialLocalRotation;
+        transform.localRotation = initialLocalRotation * Quaternion.Euler(0f, randomYaw, 0f);
         
         if (rootBody != null)
         {
@@ -196,9 +197,7 @@ public class G1Agent : Agent
             // БЕЗОПАСНЫЙ СПАВН: Приподнимаем робота на 3 сантиметра (0.03м) вверх от исходной точки
             Vector3 safeSpawnPos = initialPelvisPosition + new Vector3(0f, 0.03f, 0f);
             
-            // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: рандомизация направления (yaw),
-            // чтобы агент не запоминал конкретный маршрут, а учил универсальную стратегию ходьбы
-            float randomYaw = Random.Range(-180f, 180f);
+            // Телепортируем корневое тело с учетом нового направления родителя
             Quaternion randomRotation = initialPelvisRotation * Quaternion.Euler(0f, randomYaw, 0f);
             rootBody.TeleportRoot(safeSpawnPos, randomRotation);
             
@@ -230,7 +229,7 @@ public class G1Agent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        int obsSize = 14 + joints.Count * 2; // Динамически вычисляем точный размер наблюдений (72 при 29 суставах)
+        int obsSize = 16 + joints.Count * 2; // Динамически вычисляем точный размер наблюдений (74 при 29 суставах)
         if (rootBody == null)
         {
             for (int i = 0; i < obsSize; i++) sensor.AddObservation(0f);
@@ -268,6 +267,10 @@ public class G1Agent : Agent
                 sensor.AddObservation(joint.jointVelocity[0]);
             }
         }
+
+        // 5. Датчики контакта ног (2 наблюдения, итого 74 наблюдения)
+        sensor.AddObservation(leftFoot != null && leftFoot.isGrounded ? 1f : 0f);
+        sensor.AddObservation(rightFoot != null && rightFoot.isGrounded ? 1f : 0f);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -408,7 +411,7 @@ public class G1Agent : Agent
         {
             actionPenalty += Mathf.Abs(continuousActions[i]);
         }
-        // Деление переведено на continuousActions.Length, штраф поднят в 10 раз (до 0.01) для реального влияния на плавность
-        AddReward(- (actionPenalty / continuousActions.Length) * 0.01f);
+        // Штраф за рывки поднят до 0.025 (соотношение скорость:рывки теперь 8:1 для реальной плавности походки)
+        AddReward(- (actionPenalty / continuousActions.Length) * 0.025f);
     }
 }
