@@ -382,5 +382,9 @@ public class G1Agent : Agent
             actionPenalty += Mathf.Abs(continuousActions[i]);
         }
         AddReward(- (actionPenalty / continuousActions.Length) * 0.025f);
+
+        // Наказание за избыточную угловую скорость таза (устраняет резкий занос при разворотах)
+        float yawSpeed = Mathf.Abs(rootBody.angularVelocity.y);
+        AddReward(-yawSpeed * 0.003f);
     }
 }
