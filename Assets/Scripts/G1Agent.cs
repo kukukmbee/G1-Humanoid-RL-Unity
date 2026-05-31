@@ -162,8 +162,9 @@ public class G1Agent : Agent
     {
         episodeSteps = 0;
 
-        // Случайный поворот родительского контейнера по оси Y (полные 360 градусов)
-        float randomYaw = Random.Range(-180f, 180f);
+        // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: генерируем yaw строго в задней полусфере,
+        // чтобы заставить робота тренировать развороты из положения "спиной к цели"
+        float randomYaw = Random.value > 0.5f ? Random.Range(90f, 180f) : Random.Range(-180f, -90f);
         transform.localPosition = initialLocalPosition;
         transform.localRotation = initialLocalRotation * Quaternion.Euler(0f, randomYaw, 0f);
         
