@@ -24,6 +24,14 @@ public class G1Agent : Agent
     [Tooltip("Датчик касания правой стопы.")]
     public FootSensor rightFoot;
 
+    [Header("Demo / Path Following Settings")]
+    [Tooltip("Включить режим демонстрации (следование по вейпоинтам без телепортации при взятии точек).")]
+    public bool demoMode = false;
+    [Tooltip("Заблокировать руки в позе удержания коробки (для режима доставки).")]
+    public bool lockArmsForDelivery = false;
+    [Tooltip("Локальный менеджер доставки куба для этой копии среды.")]
+    public DeliveryManager deliveryManager;
+
     private int episodeSteps = 0;
     private int obsSize; // Кэшированный размер вектора наблюдений (74)
 
@@ -105,6 +113,16 @@ public class G1Agent : Agent
             body.solverVelocityIterations = 12;
 
             string lowerName = body.name.ToLower();
+
+            // Автоматическое навешивание датчика столкновения со стенами лабиринта на ключевые кости
+            if (body == rootBody || lowerName.Contains("torso") || lowerName.Contains("hip") || lowerName.Contains("thigh"))
+            {
+                if (body.gameObject.GetComponent<WallCollisionSensor>() == null)
+                {
+                    body.gameObject.AddComponent<WallCollisionSensor>();
+                }
+            }
+
             // Включение Continuous Speculative для стоп для предотвращения проваливания сквозь пол
             if (lowerName.Contains("ankle_roll") || lowerName.Contains("foot") || lowerName.Contains("toe"))
             {
@@ -121,23 +139,7 @@ public class G1Agent : Agent
                 float defaultTarget = body.xDrive.target;
                 
                 // Программный override дефолтных углов для формирования пружинящей стартовой позы
-                if (lowerName.Contains("elbow"))
-                {
-                    defaultTarget = 15f; // Естественное легкое сгибание локтей
-                }
-                else if (lowerName.Contains("shoulder_pitch"))
-                {
-                    defaultTarget = 0f; // Руки опущены вниз
-                }
-                else if (lowerName.Contains("shoulder_roll"))
-                {
-                    defaultTarget = 0f; // Руки прижаты к бокам
-                }
-                else if (lowerName.Contains("shoulder_yaw"))
-                {
-                    defaultTarget = 0f; 
-                }
-                else if (lowerName.Contains("knee"))
+                if (lowerName.Contains("knee"))
                 {
                     defaultTarget = 25f; // Подсогнутые колени для амортизации шага
                 }
@@ -162,11 +164,18 @@ public class G1Agent : Agent
     {
         episodeSteps = 0;
 
-        // СЛУЧАЙНЫЙ ПОВОРОТ ПРИ СПАВНЕ: генерируем yaw строго в задней полусфере,
-        // чтобы заставить робота тренировать развороты из положения "спиной к цели"
-        float randomYaw = Random.value > 0.5f ? Random.Range(90f, 180f) : Random.Range(-180f, -90f);
+        // Принудительно сбрасываем сценарий доставки (цели, кубы и вейпоинты) при перезапуске эпизода (например, при падении)
+        if (demoMode && deliveryManager != null)
+        {
+            deliveryManager.ResetDeliveryScenario();
+        }
+
+        // СПАВН БЕЗ СЛУЧАЙНЫХ ПОВОРОТОВ: для стабильного обучения в лабиринте робот всегда
+        // спавнится строго в направлении, заданном в редакторе Unity (yaw = 0).
+        float spawnYaw = 0f;
+
         transform.localPosition = initialLocalPosition;
-        transform.localRotation = initialLocalRotation * Quaternion.Euler(0f, randomYaw, 0f);
+        transform.localRotation = initialLocalRotation * Quaternion.Euler(0f, spawnYaw, 0f);
         
         if (rootBody != null)
         {
@@ -176,8 +185,21 @@ public class G1Agent : Agent
 
             // Сброс положения таза с безопасным зазором по высоте (+3 см)
             Vector3 safeSpawnPos = initialPelvisPosition + new Vector3(0f, 0.03f, 0f);
-            Quaternion randomRotation = initialPelvisRotation * Quaternion.Euler(0f, randomYaw, 0f);
-            rootBody.TeleportRoot(safeSpawnPos, randomRotation);
+            
+            // CURRICULUM LEARNING: Если выпал спавн сразу с коробкой, переносим робота к кубу
+            if (demoMode && deliveryManager != null && deliveryManager.currentState == DeliveryManager.DeliveryState.CarryingBack)
+            {
+                if (deliveryManager.pathToCube.Count > 0)
+                {
+                    Transform cubeTransform = deliveryManager.pathToCube[deliveryManager.pathToCube.Count - 1];
+                    Vector3 worldOffset = cubeTransform.position - initialPelvisPosition;
+                    worldOffset.y = 0; // Строго сохраняем безопасную высоту
+                    safeSpawnPos += worldOffset;
+                }
+            }
+
+            Quaternion spawnRotation = initialPelvisRotation * Quaternion.Euler(0f, spawnYaw, 0f);
+            rootBody.TeleportRoot(safeSpawnPos, spawnRotation);
             
             // Вторичное обнуление скоростей для предотвращения физических артефактов
             rootBody.linearVelocity = Vector3.zero;
@@ -267,6 +289,18 @@ public class G1Agent : Agent
                 float maxDeviation = 65f; // Максимальная амплитуда движения сустава
                 
                 float targetAngle = defaultAngle + actionVal * maxDeviation;
+
+                // Ручное переопределение углов рук для статической позы удержания коробки
+                if (lockArmsForDelivery)
+                {
+                    string lowerName = joint.name.ToLower();
+                    if (lowerName.Contains("elbow") || lowerName.Contains("shoulder"))
+                    {
+                        // Блокируем руки строго в их естественной позе спавна (где локти согнуты на 90 градусов)
+                        targetAngle = defaultAngle;
+                    }
+                }
+
                 targetAngle = Mathf.Clamp(targetAngle, drive.lowerLimit, drive.upperLimit);
                 
                 drive.target = targetAngle;
@@ -356,7 +390,22 @@ public class G1Agent : Agent
 
             if (speedTowardTarget > 0)
             {
-                AddReward(speedTowardTarget * 0.2f * directionMultiplier * postureMultiplier);
+                // Сниженная базовая награда за скорость (0.07f вместо 0.2f), чтобы робот не бежал сломя голову
+                float speedMultiplier = 0.07f;
+
+                // Зона торможения перед конечной целью (коробкой или базой)
+                if (demoMode && deliveryManager != null && deliveryManager.IsCurrentWaypointFinal())
+                {
+                    Transform finalWaypoint = deliveryManager.GetCurrentWaypoint();
+                    if (finalWaypoint != null)
+                    {
+                        float distanceToFinal = Vector3.Distance(rootBody.transform.position, finalWaypoint.position);
+                        // Плавно снижаем множитель скорости до 0 в радиусе 2.5 метров от цели
+                        speedMultiplier *= Mathf.Clamp01(distanceToFinal / 2.5f);
+                    }
+                }
+
+                AddReward(speedTowardTarget * speedMultiplier * directionMultiplier * postureMultiplier);
             }
             else
             {
@@ -364,15 +413,28 @@ public class G1Agent : Agent
                 AddReward(speedTowardTarget * 0.1f);
             }
 
-            // 6. Успешное достижение целевой зоны (сфера радиусом 1 метр)
+            // Взятие чекпоинта / вейпоинта
             float currentDistance = Vector3.Distance(rootBody.transform.position, target.position);
             if (currentDistance < 1.0f)
             {
-                Debug.Log($"[G1Agent] Эпизод завершен (Успех)! Шагов: {episodeSteps}");
-                // Использование AddReward для сохранения накопленного качественного сигнала
-                AddReward(10.0f); 
-                EndEpisode();
-                return;
+                if (demoMode && deliveryManager != null)
+                {
+                    // В режиме демо передаем управление локальному менеджеру доставки куба
+                    deliveryManager.OnWaypointReached(this);
+                }
+                else if (demoMode && CheckpointManager.Instance != null)
+                {
+                    // Резервный вариант с общим менеджером чекпоинтов
+                    CheckpointManager.Instance.OnCheckpointReached(this);
+                }
+                else
+                {
+                    Debug.Log($"[G1Agent] Эпизод завершен (Успех)! Шагов: {episodeSteps}");
+                    // Использование AddReward для сохранения накопленного качественного сигнала
+                    AddReward(10.0f); 
+                    EndEpisode();
+                    return;
+                }
             }
         }
 
