@@ -133,30 +133,19 @@ public class DeliveryManager : MonoBehaviour
             // Если пришли к последней точке пути «Туда» (к кубу)
             if (currentPathIndex >= pathToCube.Count - 1)
             {
-                // Переход в режим переноски
-                currentState = DeliveryState.CarryingBack;
+                currentState = DeliveryState.Finished;
 
-                // Визуальный «захват» куба
+                // Физический сброс куба
                 if (standaloneCube != null) standaloneCube.SetActive(false);
-                if (visualCubeInHands != null) visualCubeInHands.SetActive(false); // Куб убрали
 
-                // Активация позы «коробка в руках» и смена пути
-                reachedAgent.lockArmsForDelivery = false; // Руки больше не блокируем
+                // Финальный бонус за успешный проход лабиринта
+                float finalReward = 15.0f + (pathToCube.Count * 3.0f);
+                reachedAgent.AddReward(finalReward); 
+
+                Debug.Log($"[{gameObject.name}] Лабиринт успешно пройден! Награда: {finalReward}. Завершение эпизода.");
                 
-                // Нарастающий бонус за взятие куба (базовые 5.0 + прибавка за длину пути)
-                float cubeReward = 5.0f + (pathToCube.Count * 2.0f);
-                reachedAgent.AddReward(cubeReward); 
-
-                currentPathIndex = 0;
-                if (pathBackHome.Count > 0)
-                {
-                    reachedAgent.target = pathBackHome[0];
-                    Debug.Log($"[{gameObject.name}] Чекпоинт достигнут! Награда: {cubeReward}. Возвращаемся домой. Новая цель: {pathBackHome[0].name}");
-                }
-                else
-                {
-                    Debug.LogWarning($"[{gameObject.name}] Путь обратно домой пуст!");
-                }
+                // Перезапускаем сцену для следующего демонстрационного раунда
+                ResetDeliveryScenarioAndAgent();
             }
             else
             {
