@@ -226,7 +226,8 @@ public class DeliveryManager : MonoBehaviour
 
     private void UpdateLineRenderer()
     {
-        if (lineRenderer == null) return;
+        // Рисование траектории отключено для презентации
+        return;
 
         List<Transform> activePath = (currentState == DeliveryState.WalkingToCube) ? pathToCube : pathBackHome;
         lineRenderer.startColor = (currentState == DeliveryState.WalkingToCube) ? pathToCubeColor : pathBackHomeColor;
