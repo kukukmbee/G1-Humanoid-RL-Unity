@@ -226,60 +226,16 @@ public class DeliveryManager : MonoBehaviour
 
     private void UpdateLineRenderer()
     {
-        // Рисование траектории отключено для презентации
-        return;
-
-        List<Transform> activePath = (currentState == DeliveryState.WalkingToCube) ? pathToCube : pathBackHome;
-        lineRenderer.startColor = (currentState == DeliveryState.WalkingToCube) ? pathToCubeColor : pathBackHomeColor;
-        lineRenderer.endColor = lineRenderer.startColor;
-
-        if (activePath.Count > 0)
+        if (lineRenderer != null)
         {
-            lineRenderer.positionCount = activePath.Count;
-            for (int i = 0; i < activePath.Count; i++)
-            {
-                if (activePath[i] != null)
-                {
-                    lineRenderer.SetPosition(i, activePath[i].position);
-                }
-            }
+            lineRenderer.enabled = false;
         }
+        return;
     }
 
     private void OnDrawGizmos()
     {
-        // Отрисовка пути «Туда» синим цветом
-        if (pathToCube.Count > 0)
-        {
-            Gizmos.color = Color.cyan;
-            for (int i = 0; i < pathToCube.Count; i++)
-            {
-                if (pathToCube[i] != null)
-                {
-                    Gizmos.DrawWireSphere(pathToCube[i].position, 0.4f);
-                    if (i < pathToCube.Count - 1 && pathToCube[i+1] != null)
-                    {
-                        Gizmos.DrawLine(pathToCube[i].position, pathToCube[i+1].position);
-                    }
-                }
-            }
-        }
-
-        // Отрисовка пути «Обратно» желтым цветом
-        if (pathBackHome.Count > 0)
-        {
-            Gizmos.color = Color.yellow;
-            for (int i = 0; i < pathBackHome.Count; i++)
-            {
-                if (pathBackHome[i] != null)
-                {
-                    Gizmos.DrawWireSphere(pathBackHome[i].position, 0.4f);
-                    if (i < pathBackHome.Count - 1 && pathBackHome[i+1] != null)
-                    {
-                        Gizmos.DrawLine(pathBackHome[i].position, pathBackHome[i+1].position);
-                    }
-                }
-            }
-        }
+        // Отрисовка Гизмо отключена для презентации
+        return;
     }
 }
