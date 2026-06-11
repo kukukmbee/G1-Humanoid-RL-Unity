@@ -73,3 +73,6 @@ Thumbs.db
 /results/
 /venv/
 /.venv/
+
+# Antigravity Communication Preferences
+antigravity_communication_preferences.txt
